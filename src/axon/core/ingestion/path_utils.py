@@ -15,6 +15,16 @@ def is_test_file(file_path: str) -> bool:
 
 
 def is_alembic_migration(file_path: str) -> bool:
-    """Return True if *file_path* looks like an Alembic migration file."""
-    parts = file_path.replace("\\", "/").split("/")
-    return "versions" in parts or "migrations" in parts
+    """Return True if *file_path* looks like an Alembic migration file.
+
+    Requires a ``versions`` segment preceded by ``alembic`` or ``migrations``
+    to avoid false positives on unrelated directories.
+    """
+    normalized = file_path.replace("\\", "/")
+    if not normalized.endswith(".py"):
+        return False
+    parts = normalized.split("/")
+    for i in range(1, len(parts)):
+        if parts[i] == "versions" and parts[i - 1] in ("alembic", "migrations"):
+            return True
+    return False

@@ -17,7 +17,7 @@ from axon.core.ingestion.calls import (
 )
 from axon.core.ingestion.parser_phase import FileParseData
 from axon.core.ingestion.symbol_lookup import build_name_index
-from axon.core.parsers.base import CallInfo, FuncRef, ParseResult, TypeRef
+from axon.core.parsers.base import CallInfo, FuncRef, ParseResult, SymbolInfo, TypeRef
 
 _CALLABLE_LABELS = (NodeLabel.FUNCTION, NodeLabel.METHOD, NodeLabel.CLASS)
 
@@ -667,6 +667,71 @@ class TestTypeInferenceNoMatchFallback:
         for rel in calls_rels:
             if rel.target == user_save_id:
                 assert rel.properties["confidence"] != 0.8
+
+
+class TestTypeInferencePerSymbolScoping:
+    """Param-based type inference must be scoped per-symbol.
+
+    Two functions in the same file can have the same parameter name with
+    different annotated types.  The type table should resolve each call
+    using only the type annotation from its containing function.
+    """
+
+    def test_same_param_name_different_types(self) -> None:
+        g = KnowledgeGraph()
+        _add_file_node(g, "src/dense.py")
+        _add_file_node(g, "src/models.py")
+
+        # Two classes with identically-named methods.
+        _add_symbol_node(g, NodeLabel.CLASS, "src/models.py", "User", 1, 20)
+        _add_symbol_node(
+            g, NodeLabel.METHOD, "src/models.py", "save", 10, 15, class_name="User"
+        )
+        _add_symbol_node(g, NodeLabel.CLASS, "src/models.py", "Order", 30, 50)
+        _add_symbol_node(
+            g, NodeLabel.METHOD, "src/models.py", "save", 40, 45, class_name="Order"
+        )
+
+        # Two functions in the *same* file, both with a param named "obj".
+        _add_symbol_node(g, NodeLabel.FUNCTION, "src/dense.py", "handle_user", 1, 10)
+        _add_symbol_node(g, NodeLabel.FUNCTION, "src/dense.py", "handle_order", 12, 22)
+
+        parse_data = [
+            FileParseData(
+                file_path="src/dense.py",
+                language="python",
+                parse_result=ParseResult(
+                    symbols=[
+                        SymbolInfo(
+                            name="handle_user", kind="function",
+                            start_line=1, end_line=10, content="",
+                        ),
+                        SymbolInfo(
+                            name="handle_order", kind="function",
+                            start_line=12, end_line=22, content="",
+                        ),
+                    ],
+                    calls=[
+                        CallInfo(name="save", line=5, receiver="obj"),
+                        CallInfo(name="save", line=15, receiver="obj"),
+                    ],
+                    type_refs=[
+                        TypeRef(name="User", kind="param", line=1, param_name="obj"),
+                        TypeRef(name="Order", kind="param", line=12, param_name="obj"),
+                    ],
+                ),
+            ),
+        ]
+
+        process_calls(parse_data, g)
+        calls_rels = g.get_relationships_by_type(RelType.CALLS)
+
+        user_save_id = generate_id(NodeLabel.METHOD, "src/models.py", "User.save")
+        order_save_id = generate_id(NodeLabel.METHOD, "src/models.py", "Order.save")
+        targets = {r.target for r in calls_rels}
+
+        assert user_save_id in targets, "handle_user's obj.save() should resolve to User.save"
+        assert order_save_id in targets, "handle_order's obj.save() should resolve to Order.save"
 
 
 class TestFuncRefAssignment:

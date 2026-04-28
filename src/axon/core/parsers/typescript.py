@@ -574,6 +574,7 @@ class TypeScriptParser(LanguageParser):
 
         line = node.start_point[0] + 1
         arguments = self._extract_identifier_arguments(node)
+        assignment_target = self._find_assignment_target(node)
 
         if constructor_node.type == "identifier":
             result.calls.append(
@@ -581,6 +582,7 @@ class TypeScriptParser(LanguageParser):
                     name=constructor_node.text.decode(),
                     line=line,
                     arguments=arguments,
+                    assignment_target=assignment_target,
                 )
             )
         elif constructor_node.type == "member_expression":
@@ -594,6 +596,7 @@ class TypeScriptParser(LanguageParser):
                         line=line,
                         receiver=receiver,
                         arguments=arguments,
+                        assignment_target=assignment_target,
                     )
                 )
 
@@ -607,8 +610,9 @@ class TypeScriptParser(LanguageParser):
         for child in node.children:
             if child.type in ("identifier", "member_expression"):
                 name = child.text.decode()
-                # Skip HTML intrinsic elements (lowercase).
-                if name[0].islower():
+                # Skip HTML intrinsic elements (lowercase identifier only).
+                # Member expressions like <ns.Component /> are always user-defined.
+                if child.type == "identifier" and name[0].islower():
                     return
                 line = node.start_point[0] + 1
                 # For member expressions like <Ns.Component />, split receiver.

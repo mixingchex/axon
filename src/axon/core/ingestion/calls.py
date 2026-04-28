@@ -7,7 +7,7 @@ Resolution priority:
 1. Same-file exact match (confidence 1.0)
 2. Import-resolved match (confidence 1.0)
 3. Global fuzzy match (confidence 0.5)
-4. Receiver method resolution (confidence 0.8)
+4. Receiver method resolution (confidence 0.8, or 0.75 for type-inferred)
 """
 
 from __future__ import annotations
@@ -412,7 +412,8 @@ def _resolve_receiver_method(
     file_path: str,
     call_index: dict[str, list[str]],
     graph: KnowledgeGraph,
-    type_table: dict[str, dict[str, str]] | None = None,
+    type_table: _ScopedTypeTable | None = None,
+    caller_line: int = 0,
 ) -> ResolvedEdge | None:
     """Resolve ``Receiver.method()`` to the METHOD node and return a ResolvedEdge.
 
@@ -422,9 +423,12 @@ def _resolve_receiver_method(
     """
     # Resolve receiver to class name via type table
     resolved_receiver = receiver
+    type_inferred = False
     if type_table:
-        file_types = type_table.get(file_path, {})
-        resolved_receiver = file_types.get(receiver, receiver)
+        inferred = _lookup_scoped_type(type_table, file_path, receiver, caller_line)
+        if inferred is not None:
+            resolved_receiver = inferred
+            type_inferred = True
 
     same_file_match: str | None = None
     global_match: str | None = None
@@ -446,36 +450,95 @@ def _resolve_receiver_method(
 
     target = same_file_match or global_match
     if target is not None:
+        confidence = 0.75 if type_inferred else 0.8
         return ResolvedEdge(
             rel_id=f"calls:{source_id}->{target}",
             rel_type=RelType.CALLS,
             source=source_id,
             target=target,
-            properties={"confidence": 0.8},
+            properties={"confidence": confidence},
         )
     return None
+
+
+# Scoped type entry: (class_name, scope_start, scope_end).
+# scope_start == scope_end == 0 means file-scoped (applies everywhere).
+_ScopedTypeEntry = tuple[str, int, int]
+_ScopedTypeTable = dict[str, dict[str, list[_ScopedTypeEntry]]]
 
 
 def _build_type_table(
     parse_data: list[FileParseData],
     graph: KnowledgeGraph,
-) -> dict[str, dict[str, str]]:
-    """Build per-file ``{variable_name: class_name}`` from annotations and constructors."""
+) -> _ScopedTypeTable:
+    """Build per-file ``{variable_name: [(class_name, scope_start, scope_end)]}``
+    from annotations and constructors.
+
+    Variable annotations and constructor assignments are file-scoped.
+    Parameter annotations are scoped to their containing symbol's line range
+    so that identically-named params in different functions don't collide.
+    """
     class_names = {node.name for node in graph.get_nodes_by_label(NodeLabel.CLASS)}
-    table: dict[str, dict[str, str]] = {}
+    table: _ScopedTypeTable = {}
     for fpd in parse_data:
-        file_table: dict[str, str] = {}
+        file_entries: dict[str, list[_ScopedTypeEntry]] = {}
+        symbols = fpd.parse_result.symbols
+
         for tref in fpd.parse_result.type_refs:
             if tref.kind == "variable" and tref.variable_name:
-                file_table.setdefault(tref.variable_name, tref.name)
+                file_entries.setdefault(tref.variable_name, []).append(
+                    (tref.name, 0, 0)
+                )
             elif tref.kind == "param" and tref.param_name:
-                file_table.setdefault(tref.param_name, tref.name)
+                scope_start, scope_end, best_span = 0, 0, float("inf")
+                for sym in symbols:
+                    span = sym.end_line - sym.start_line
+                    if sym.start_line <= tref.line <= sym.end_line and span < best_span:
+                        scope_start, scope_end, best_span = sym.start_line, sym.end_line, span
+                file_entries.setdefault(tref.param_name, []).append(
+                    (tref.name, scope_start, scope_end)
+                )
+
         for call in fpd.parse_result.calls:
             if call.assignment_target and call.name in class_names and not call.receiver:
-                file_table.setdefault(call.assignment_target, call.name)
-        if file_table:
-            table[fpd.file_path] = file_table
+                file_entries.setdefault(call.assignment_target, []).append(
+                    (call.name, 0, 0)
+                )
+        if file_entries:
+            table[fpd.file_path] = file_entries
     return table
+
+
+def _lookup_scoped_type(
+    type_table: _ScopedTypeTable,
+    file_path: str,
+    var_name: str,
+    caller_line: int,
+) -> str | None:
+    """Look up the inferred type for *var_name* at *caller_line*.
+
+    Returns the class name from the narrowest matching scope, or ``None``.
+    """
+    file_entries = type_table.get(file_path)
+    if not file_entries:
+        return None
+    entries = file_entries.get(var_name)
+    if not entries:
+        return None
+
+    best: str | None = None
+    best_span = float("inf")
+    for class_name, scope_start, scope_end in entries:
+        if scope_start == 0 and scope_end == 0:
+            # File-scoped: always matches; use as fallback.
+            if best is None:
+                best = class_name
+        elif scope_start <= caller_line <= scope_end:
+            span = scope_end - scope_start
+            if span < best_span:
+                best = class_name
+                best_span = span
+    return best
 
 
 def resolve_file_calls(
@@ -483,7 +546,7 @@ def resolve_file_calls(
     call_index: dict[str, list[str]],
     file_sym_index: FileSymbolIndex,
     graph: KnowledgeGraph,
-    type_table: dict[str, dict[str, str]] | None = None,
+    type_table: _ScopedTypeTable | None = None,
 ) -> list[ResolvedEdge]:
     """Resolve all call expressions in a single file to ResolvedEdge objects.
 
@@ -569,6 +632,7 @@ def resolve_file_calls(
                 call_index,
                 graph,
                 type_table=type_table,
+                caller_line=call.line,
             )
             if recv_method_edge is not None and recv_method_edge.rel_id not in seen:
                 seen.add(recv_method_edge.rel_id)

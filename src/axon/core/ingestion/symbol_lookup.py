@@ -63,20 +63,39 @@ def build_file_symbol_index(
 
     return FileSymbolIndex(entries)
 
+_BACKWARD_SCAN_CAP = 500
+
+
 def find_containing_symbol(
     line: int,
     file_path: str,
     file_symbol_index: FileSymbolIndex,
 ) -> str | None:
-    """Return the node ID of the narrowest symbol containing *line*, or None."""
+    """Return the node ID of the narrowest symbol containing *line*, or None.
+
+    Uses binary search to find the insertion point, then scans backward
+    (up to ``_BACKWARD_SCAN_CAP`` entries) to check all candidates whose
+    ``start_line <= line``.
+    """
     entries = file_symbol_index.get_entries(file_path)
     if not entries:
         return None
 
+    # Binary search for the rightmost entry with start_line <= line.
+    lo, hi = 0, len(entries)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if entries[mid][0] <= line:
+            lo = mid + 1
+        else:
+            hi = mid
+    # lo is now the first entry with start_line > line; scan backward.
     best_id: str | None = None
     best_span = float("inf")
+    scan_start = max(0, lo - _BACKWARD_SCAN_CAP)
 
-    for start, end, span, nid in entries:
+    for i in range(lo - 1, scan_start - 1, -1):
+        start, end, span, nid = entries[i]
         if start <= line <= end and span < best_span:
             best_span = span
             best_id = nid
