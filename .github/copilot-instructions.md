@@ -41,7 +41,6 @@ src/axon/
 │   │   └── watcher.py       # watchfiles-based live re-indexing
 │   ├── search/              # Hybrid BM25 + vector + fuzzy search
 │   ├── parsers/             # Language-specific tree-sitter parsers (base.py, python_lang.py, typescript.py)
-│   ├── parsers/             # Language-specific tree-sitter parsers (base.py, python_lang.py, typescript.py)
 │   └── storage/
 │       ├── base.py          # StorageBackend abstract interface
 │       └── kuzu_backend.py  # KuzuDB implementation
@@ -127,7 +126,7 @@ axon diff main..feature # Structural branch comparison
 9. **Process Detection** — BFS from entry points → `Process` nodes + `STEP_IN_PROCESS` edges
 10. **Dead Code Detection** — multi-pass with decorator/protocol/export exemptions
 11. **Change Coupling** — git co-change analysis → `COUPLED_WITH` edges
-12. **Embeddings (optional, post-load)** — 384-dim vectors via fastembed (BAAI/bge-small-en-v1.5)
+12. **Embeddings (optional, post-load)** — 384-dim vectors via fastembed (nomic-ai/nomic-embed-text-v1.5)
 
 ---
 
@@ -177,11 +176,11 @@ Defined in `src/axon/mcp/tools.py`, registered in `src/axon/mcp/server.py`:
 | `axon_test_impact` | Which tests are affected by a change |
 
 ---
-1. Create `src/axon/core/parsers/<lang>.py` following the pattern in `python_lang.py` or `typescript.py`
-2. Register the language in `src/axon/core/parsers/__init__.py`
 
-1. Create `src/axon/core/ingestion/languages/<lang>.py` following the pattern in `python.py` or `typescript.py`
-2. Register the language in `src/axon/core/ingestion/languages/__init__.py`
+## Adding a New Language Parser
+
+1. Create `src/axon/core/parsers/<lang>.py` following the pattern in `python_lang.py` or `typescript.py`
+2. Register the language in `_PARSER_FACTORIES` in `src/axon/core/ingestion/parser_phase.py`
 3. Add the tree-sitter grammar dependency to `pyproject.toml`
 4. Add the file extension mapping in `src/axon/config/languages.py` → `SUPPORTED_EXTENSIONS`
 5. Write tests in `tests/core/test_parser_<lang>.py`
