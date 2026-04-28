@@ -125,7 +125,7 @@ axon diff main..feature # Structural branch comparison
 9. **Process Detection** — BFS from entry points → `Process` nodes + `STEP_IN_PROCESS` edges
 10. **Dead Code Detection** — multi-pass with decorator/protocol/export exemptions
 11. **Change Coupling** — git co-change analysis → `COUPLED_WITH` edges
-12. **Embeddings** — 384-dim vectors via fastembed (BAAI/bge-small-en-v1.5)
+12. **Embeddings (optional, post-load)** — 384-dim vectors via fastembed (BAAI/bge-small-en-v1.5)
 
 ---
 
@@ -145,7 +145,10 @@ Defined in `src/axon/core/graph/model.py`:
 
 `KuzuBackend` (`src/axon/core/storage/kuzu_backend.py`) stores the graph in `.axon/kuzu/` within the indexed repo. Key methods: `bulk_load(graph)`, `load_graph()`, `get_nodes_by_label()`, `add_nodes()`, `add_relationships()`, `remove_nodes_by_file()`, `rebuild_fts_indexes()`, `store_embeddings()`.
 
-Cypher queries run via `kuzu_backend.query()`. All writes go through `cypher_guard.py` which rejects mutation keywords.
+Cypher queries run via `kuzu_backend.query()`.
+
+`cypher_guard.py` is used to validate *user-supplied* Cypher (MCP/web) is read-only before execution.
+Internal storage writes (bulk load, inserts, deletes) are executed by the storage backend.
 
 ---
 
