@@ -126,7 +126,7 @@ def _matches_framework_pattern(node: GraphNode) -> bool:
             if pattern in content:
                 return True
 
-    if language in ("typescript", "ts", "") or node.file_path.endswith((".ts", ".tsx")):
+    if language in ("typescript", "ts") or node.file_path.endswith((".ts", ".tsx")):
         if name in ("handler", "middleware"):
             return True
         if name in _NEXTJS_ENTRY_NAMES:
