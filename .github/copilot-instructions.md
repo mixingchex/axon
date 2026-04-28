@@ -40,6 +40,7 @@ src/axon/
 │   │   ├── coupling.py      # Git history co-change analysis
 │   │   └── watcher.py       # watchfiles-based live re-indexing
 │   ├── search/              # Hybrid BM25 + vector + fuzzy search
+│   ├── parsers/             # Language-specific tree-sitter parsers (base.py, python_lang.py, typescript.py)
 │   └── storage/
 │       ├── base.py          # StorageBackend abstract interface
 │       └── kuzu_backend.py  # KuzuDB implementation
