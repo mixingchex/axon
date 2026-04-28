@@ -143,7 +143,7 @@ Defined in `src/axon/core/graph/model.py`:
 
 ## Storage Backend
 
-`KuzuBackend` (`src/axon/core/storage/kuzu_backend.py`) stores the graph in `.axon/kuzu/` within the indexed repo. Key methods: `bulk_load(graph)`, `load_graph()`, `get_nodes_by_label()`, `add_nodes()`, `add_relationships()`, `remove_nodes_by_file()`, `rebuild_fts_indexes()`, `store_embeddings()`.
+`KuzuBackend` (`src/axon/core/storage/kuzu_backend.py`) stores the graph in `.axon/kuzu/` within the indexed repo. Key methods: `bulk_load(graph)`, `load_graph()`, `add_nodes()`, `add_relationships()`, `remove_nodes_by_file()`, `rebuild_fts_indexes()`, `store_embeddings()`.
 
 Cypher queries run via `kuzu_backend.query()`.
 
