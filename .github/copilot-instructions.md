@@ -146,7 +146,7 @@ Defined in `src/axon/core/graph/model.py`:
 
 `KuzuBackend` (`src/axon/core/storage/kuzu_backend.py`) stores the graph in `.axon/kuzu/` within the indexed repo. Key methods: `bulk_load(graph)`, `load_graph()`, `add_nodes()`, `add_relationships()`, `remove_nodes_by_file()`, `rebuild_fts_indexes()`, `store_embeddings()`.
 
-Cypher queries run via `kuzu_backend.query()`.
+Cypher queries run via `kuzu_backend.execute_raw()`. All writes go through `cypher_guard.py` which rejects mutation keywords.
 
 `cypher_guard.py` is used to validate *user-supplied* Cypher (MCP/web) is read-only before execution.
 Internal storage writes (bulk load, inserts, deletes) are executed by the storage backend.
