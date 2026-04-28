@@ -1,18 +1,31 @@
-"""Integration test that loads the real nomic model.
+"""Integration tests for the embedding layer.
 
-Marked slow — only runs with ``pytest -m slow``.
+These tests exercise fastembed end-to-end and require downloading a model on
+first use. They are marked ``slow`` and also automatically skipped when
+network access isn't available.
 """
+
 from __future__ import annotations
 
 import pytest
 
-from axon.core.embeddings.embedder import embed_query, embed_graph, _DEFAULT_DIMENSIONS
+from axon.core.embeddings.embedder import _DEFAULT_DIMENSIONS, embed_graph, embed_query
 from axon.core.graph.graph import KnowledgeGraph
 from axon.core.graph.model import GraphNode, NodeLabel
 
 
 @pytest.mark.slow
 class TestEmbeddingIntegration:
+    @pytest.fixture(autouse=True)
+    def _require_network(self) -> None:
+        """Skip in environments without model download access."""
+        import socket
+
+        try:
+            socket.getaddrinfo("huggingface.co", 443)
+        except OSError:
+            pytest.skip("Network not available to download embedding model")
+
     def test_embed_query_returns_correct_dimensions(self) -> None:
         result = embed_query("a function that sorts a list")
         assert result is not None
@@ -40,13 +53,15 @@ class TestEmbeddingIntegration:
 
     def test_embed_graph_roundtrip(self) -> None:
         graph = KnowledgeGraph()
-        graph.add_node(GraphNode(
-            id="function:src/sort.py:quicksort",
-            label=NodeLabel.FUNCTION,
-            name="quicksort",
-            file_path="src/sort.py",
-            signature="def quicksort(arr: list) -> list:",
-        ))
+        graph.add_node(
+            GraphNode(
+                id="function:src/sort.py:quicksort",
+                label=NodeLabel.FUNCTION,
+                name="quicksort",
+                file_path="src/sort.py",
+                signature="def quicksort(arr: list) -> list:",
+            )
+        )
         results = embed_graph(graph)
         assert len(results) == 1
         assert len(results[0].embedding) == _DEFAULT_DIMENSIONS
