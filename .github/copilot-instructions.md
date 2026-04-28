@@ -38,6 +38,8 @@ src/axon/
 │   │   ├── processes.py     # Execution flow tracing from entry points
 │   │   ├── dead_code.py     # Multi-pass dead code detection
 │   │   ├── coupling.py      # Git history co-change analysis
+│   │   ├── resolved.py      # ResolvedEdge / NodePropertyPatch data types
+│   │   ├── symbol_lookup.py # Per-file interval index for symbol containment
 │   │   └── watcher.py       # watchfiles-based live re-indexing
 │   ├── search/              # Hybrid BM25 + vector + fuzzy search
 │   ├── parsers/             # Language-specific tree-sitter parsers (base.py, python_lang.py, typescript.py)
@@ -146,10 +148,7 @@ Defined in `src/axon/core/graph/model.py`:
 
 `KuzuBackend` (`src/axon/core/storage/kuzu_backend.py`) stores the graph in `.axon/kuzu/` within the indexed repo. Key methods: `bulk_load(graph)`, `load_graph()`, `add_nodes()`, `add_relationships()`, `remove_nodes_by_file()`, `rebuild_fts_indexes()`, `store_embeddings()`.
 
-Cypher queries run via `kuzu_backend.execute_raw()`. All writes go through `cypher_guard.py` which rejects mutation keywords.
-
-`cypher_guard.py` is used to validate *user-supplied* Cypher (MCP/web) is read-only before execution.
-Internal storage writes (bulk load, inserts, deletes) are executed by the storage backend.
+Cypher queries run via `kuzu_backend.execute_raw()`. User-supplied Cypher (from MCP tools or the web API) is validated by `cypher_guard.py`, which rejects mutation keywords to enforce read-only access. Internal storage writes (bulk load, inserts, deletes) bypass the guard and are executed directly by the storage backend.
 
 ---
 

@@ -98,8 +98,8 @@ We don't ban AI tools — but we hold AI-assisted PRs to a higher bar, not a low
 This is a common contribution. The expected process:
 
 1. **Open an issue** with the language name and scope (what constructs you'll extract)
-2. Create `src/axon/core/ingestion/languages/<lang>.py` following the pattern in `python.py` or `typescript.py`
-3. Register the language in `src/axon/core/ingestion/languages/__init__.py`
+2. Create `src/axon/core/parsers/<lang>.py` following the pattern in `python_lang.py` or `typescript.py`
+3. Register the language in `_PARSER_FACTORIES` in `src/axon/core/ingestion/parser_phase.py`
 4. Add tree-sitter grammar dependency to `pyproject.toml`
 5. Write tests in `tests/core/test_parser_<lang>.py`
 6. Verify integration: `axon analyze <test-repo>` should index the new language
