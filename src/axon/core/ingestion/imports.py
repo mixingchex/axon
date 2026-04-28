@@ -25,12 +25,14 @@ from axon.core.parsers.base import ImportInfo
 
 logger = logging.getLogger(__name__)
 
-_JS_TS_EXTENSIONS = (".ts", ".js", ".tsx", ".jsx")
+_JS_TS_EXTENSIONS = (".ts", ".js", ".tsx", ".jsx", ".mjs", ".cjs")
+
 
 def build_file_index(graph: KnowledgeGraph) -> dict[str, str]:
     """Return a mapping of file paths to graph node IDs for all File nodes."""
     file_nodes = graph.get_nodes_by_label(NodeLabel.FILE)
     return {node.file_path: node.id for node in file_nodes}
+
 
 def _detect_source_roots(file_index: dict[str, str]) -> set[str]:
     """Detect Python source root directories (e.g. ``src/``) from the file index.
@@ -66,6 +68,7 @@ def resolve_import_path(
         return _resolve_js_ts(importing_file, import_info, file_index)
 
     return None
+
 
 def resolve_file_imports(
     fpd: FileParseData,
@@ -169,6 +172,7 @@ def process_imports(
     _write_import_edges(all_edges, graph)
     return None
 
+
 def _detect_language(file_path: str) -> str:
     """Infer language from a file's extension."""
     suffix = PurePosixPath(file_path).suffix.lower()
@@ -176,9 +180,10 @@ def _detect_language(file_path: str) -> str:
         return "python"
     if suffix in (".ts", ".tsx"):
         return "typescript"
-    if suffix in (".js", ".jsx"):
+    if suffix in (".js", ".jsx", ".mjs", ".cjs"):
         return "javascript"
     return ""
+
 
 def _resolve_python(
     importing_file: str,
@@ -189,6 +194,7 @@ def _resolve_python(
     if import_info.is_relative:
         return _resolve_python_relative(importing_file, import_info, file_index)
     return _resolve_python_absolute(import_info, file_index, source_roots)
+
 
 def _resolve_python_relative(
     importing_file: str,
@@ -220,6 +226,7 @@ def _resolve_python_relative(
 
     return _try_python_paths(str(target_dir), file_index)
 
+
 def _resolve_python_absolute(
     import_info: ImportInfo,
     file_index: dict[str, str],
@@ -241,6 +248,7 @@ def _resolve_python_absolute(
 
     return None
 
+
 def _try_python_paths(base_path: str, file_index: dict[str, str]) -> str | None:
     """Try ``base_path.py`` then ``base_path/__init__.py`` against the file index."""
     candidates = [
@@ -251,6 +259,7 @@ def _try_python_paths(base_path: str, file_index: dict[str, str]) -> str | None:
         if candidate in file_index:
             return file_index[candidate]
     return None
+
 
 def _resolve_js_ts(
     importing_file: str,
@@ -269,6 +278,7 @@ def _resolve_js_ts(
     resolved_str = str(PurePosixPath(*resolved.parts))
 
     return _try_js_ts_paths(resolved_str, file_index)
+
 
 def _try_js_ts_paths(base_path: str, file_index: dict[str, str]) -> str | None:
     """Try exact match, then extension variants, then ``index`` variants against the file index."""

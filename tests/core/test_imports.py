@@ -30,6 +30,9 @@ _FILE_PATHS = [
     ("lib/utils.ts", "typescript"),
     ("lib/models/user.ts", "typescript"),
     ("lib/models/index.ts", "typescript"),
+    # ES module / CommonJS files
+    ("lib/helper.mjs", "javascript"),
+    ("lib/compat.cjs", "javascript"),
 ]
 
 @pytest.fixture()
@@ -428,3 +431,35 @@ class TestProcessImportsNoDuplicates:
 
         imports_rels = graph.get_relationships_by_type(RelType.IMPORTS)
         assert len(imports_rels) == 1
+
+
+class TestResolveMjsCjsImports:
+    def test_resolve_mjs_relative(self, file_index: dict[str, str]) -> None:
+        imp = ImportInfo(module="./helper", names=["foo"], is_relative=False)
+        result = resolve_import_path("lib/index.ts", imp, file_index)
+
+        expected_id = generate_id(NodeLabel.FILE, "lib/helper.mjs")
+        assert result == expected_id
+
+    def test_resolve_cjs_relative(self, file_index: dict[str, str]) -> None:
+        imp = ImportInfo(module="./compat", names=["bar"], is_relative=False)
+        result = resolve_import_path("lib/index.ts", imp, file_index)
+
+        expected_id = generate_id(NodeLabel.FILE, "lib/compat.cjs")
+        assert result == expected_id
+
+    def test_mjs_file_can_import(self, file_index: dict[str, str]) -> None:
+        """A .mjs source file can resolve relative imports."""
+        imp = ImportInfo(module="./utils", names=["baz"], is_relative=False)
+        result = resolve_import_path("lib/helper.mjs", imp, file_index)
+
+        expected_id = generate_id(NodeLabel.FILE, "lib/utils.ts")
+        assert result == expected_id
+
+    def test_cjs_file_can_import(self, file_index: dict[str, str]) -> None:
+        """A .cjs source file can resolve relative imports."""
+        imp = ImportInfo(module="./utils", names=["qux"], is_relative=False)
+        result = resolve_import_path("lib/compat.cjs", imp, file_index)
+
+        expected_id = generate_id(NodeLabel.FILE, "lib/utils.ts")
+        assert result == expected_id
