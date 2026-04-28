@@ -177,8 +177,8 @@ Defined in `src/axon/mcp/tools.py`, registered in `src/axon/mcp/server.py`:
 | `axon_test_impact` | Which tests are affected by a change |
 
 ---
-
-## Adding a New Language Parser
+1. Create `src/axon/core/parsers/<lang>.py` following the pattern in `python_lang.py` or `typescript.py`
+2. Register the language in `src/axon/core/parsers/__init__.py`
 
 1. Create `src/axon/core/ingestion/languages/<lang>.py` following the pattern in `python.py` or `typescript.py`
 2. Register the language in `src/axon/core/ingestion/languages/__init__.py`
