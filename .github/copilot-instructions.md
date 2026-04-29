@@ -83,6 +83,7 @@ The project uses `uv.lock` for reproducible installs. Always prefer `uv` for run
 ## Key Commands
 
 ### Run tests
+
 ```bash
 uv run pytest                          # All tests
 uv run pytest -x -q                    # Stop on first failure, quiet
@@ -92,6 +93,7 @@ uv run pytest --tb=short               # Short tracebacks
 ```
 
 ### Lint and format
+
 ```bash
 uv run ruff check src/ tests/          # Check lint issues
 uv run ruff check src/ tests/ --fix    # Auto-fix lint issues
@@ -102,6 +104,7 @@ uv run ruff format --check src/ tests/ # Check formatting without changes
 Ruff is configured in `pyproject.toml`: `line-length = 100`, rules `E, F, I, N, W`, target `py311`.
 
 ### CLI usage (after install)
+
 ```bash
 axon analyze .          # Index current repo
 axon ui                 # Launch web dashboard at localhost:8420
