@@ -38,8 +38,11 @@ src/axon/
 │   │   ├── processes.py     # Execution flow tracing from entry points
 │   │   ├── dead_code.py     # Multi-pass dead code detection
 │   │   ├── coupling.py      # Git history co-change analysis
+│   │   ├── resolved.py      # ResolvedEdge / NodePropertyPatch data types
+│   │   ├── symbol_lookup.py # Per-file interval index for symbol containment
 │   │   └── watcher.py       # watchfiles-based live re-indexing
 │   ├── search/              # Hybrid BM25 + vector + fuzzy search
+│   ├── parsers/             # Language-specific tree-sitter parsers (base.py, python_lang.py, typescript.py)
 │   └── storage/
 │       ├── base.py          # StorageBackend abstract interface
 │       └── kuzu_backend.py  # KuzuDB implementation
@@ -125,7 +128,7 @@ axon diff main..feature # Structural branch comparison
 9. **Process Detection** — BFS from entry points → `Process` nodes + `STEP_IN_PROCESS` edges
 10. **Dead Code Detection** — multi-pass with decorator/protocol/export exemptions
 11. **Change Coupling** — git co-change analysis → `COUPLED_WITH` edges
-12. **Embeddings** — 384-dim vectors via fastembed (BAAI/bge-small-en-v1.5)
+12. **Embeddings (optional, post-load)** — 768-dim vectors via fastembed (nomic-ai/nomic-embed-text-v1.5)
 
 ---
 
@@ -143,9 +146,9 @@ Defined in `src/axon/core/graph/model.py`:
 
 ## Storage Backend
 
-`KuzuBackend` (`src/axon/core/storage/kuzu_backend.py`) stores the graph in `.axon/kuzu/` within the indexed repo. Key methods: `bulk_load(graph)`, `load_graph()`, `get_nodes_by_label()`, `add_nodes()`, `add_relationships()`, `remove_nodes_by_file()`, `rebuild_fts_indexes()`, `store_embeddings()`.
+`KuzuBackend` (`src/axon/core/storage/kuzu_backend.py`) stores the graph in `.axon/kuzu/` within the indexed repo. Key methods: `bulk_load(graph)`, `load_graph()`, `add_nodes()`, `add_relationships()`, `remove_nodes_by_file()`, `rebuild_fts_indexes()`, `store_embeddings()`.
 
-Cypher queries run via `kuzu_backend.query()`. All writes go through `cypher_guard.py` which rejects mutation keywords.
+Cypher queries run via `kuzu_backend.execute_raw()`. User-supplied Cypher (from MCP tools or the web API) is validated by `cypher_guard.py`, which rejects mutation keywords to enforce read-only access. Internal storage writes (bulk load, inserts, deletes) bypass the guard and are executed directly by the storage backend.
 
 ---
 
@@ -175,8 +178,8 @@ Defined in `src/axon/mcp/tools.py`, registered in `src/axon/mcp/server.py`:
 
 ## Adding a New Language Parser
 
-1. Create `src/axon/core/ingestion/languages/<lang>.py` following the pattern in `python.py` or `typescript.py`
-2. Register the language in `src/axon/core/ingestion/languages/__init__.py`
+1. Create `src/axon/core/parsers/<lang>.py` following the pattern in `python_lang.py` or `typescript.py`
+2. Register the language in `_PARSER_FACTORIES` in `src/axon/core/ingestion/parser_phase.py`
 3. Add the tree-sitter grammar dependency to `pyproject.toml`
 4. Add the file extension mapping in `src/axon/config/languages.py` → `SUPPORTED_EXTENSIONS`
 5. Write tests in `tests/core/test_parser_<lang>.py`
