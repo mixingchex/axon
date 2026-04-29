@@ -11,6 +11,7 @@ richness that makes embedding worthwhile.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import threading
@@ -80,6 +81,24 @@ _DEFAULT_BATCH_SIZE = 32
 _MAX_TEXT_CHARS = 8192
 
 
+def _fallback_vector(text: str, dimensions: int) -> list[float]:
+    """Return a deterministic pseudo-embedding derived from *text*.
+
+    Used as a degraded fallback when the real embedding model cannot be
+    loaded (e.g. no network in CI).  The vector is built by repeatedly
+    SHA-256-hashing the input until enough bytes are produced, then
+    mapping each byte to the [-1, 1] range.
+    """
+    seed_bytes = text.strip().encode("utf-8")
+    digest = bytearray()
+    counter = 0
+    while len(digest) < dimensions:
+        counter_bytes = counter.to_bytes(4, "little", signed=False)
+        digest.extend(hashlib.sha256(seed_bytes + counter_bytes).digest())
+        counter += 1
+    return [((b / 255.0) * 2.0) - 1.0 for b in digest[:dimensions]]
+
+
 def embed_query(
     query: str,
     model_name: str = _DEFAULT_MODEL,
@@ -93,26 +112,8 @@ def embed_query(
         vec = next(iter(model.query_embed(query)))
         return vec[:dimensions].tolist()
     except Exception:
-        # Some environments (notably CI) may not have network access to download
-        # the model on first use. For callers that can tolerate degraded
-        # semantic quality, return a deterministic fallback vector so the rest
-        # of the pipeline can keep working.
         logger.warning("embed_query failed", exc_info=True)
-
-        seed_bytes = query.strip().encode("utf-8")
-        digest = bytearray()
-        counter = 0
-        # Expand to `dimensions` bytes deterministically.
-        while len(digest) < dimensions:
-            counter_bytes = counter.to_bytes(4, "little", signed=False)
-            digest.extend(os.urandom(0))
-            import hashlib
-
-            digest.extend(hashlib.sha256(seed_bytes + counter_bytes).digest())
-            counter += 1
-
-        vec = [((b / 255.0) * 2.0) - 1.0 for b in digest[:dimensions]]
-        return vec
+        return None
 
 
 def _embed_node_list(
@@ -131,9 +132,7 @@ def _embed_node_list(
         vectors = list(model.passage_embed(texts, batch_size=batch_size))
     except Exception:
         logger.warning("embed_graph failed; using fallback embeddings", exc_info=True)
-        vectors = [
-            embed_query(text, model_name=model_name, dimensions=dimensions) for text in texts
-        ]
+        vectors = [_fallback_vector(text, dimensions) for text in texts]
 
     results: list[NodeEmbedding] = []
     for node, vector in zip(nodes, vectors):

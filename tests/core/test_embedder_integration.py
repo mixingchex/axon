@@ -22,7 +22,7 @@ class TestEmbeddingIntegration:
         import socket
 
         try:
-            socket.getaddrinfo("huggingface.co", 443)
+            socket.create_connection(("huggingface.co", 443), timeout=3)
         except OSError:
             pytest.skip("Network not available to download embedding model")
 

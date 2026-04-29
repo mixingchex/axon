@@ -10,6 +10,7 @@ from axon.core.embeddings.embedder import (
     _DEFAULT_BATCH_SIZE,
     _DEFAULT_DIMENSIONS,
     _DEFAULT_MODEL,
+    _fallback_vector,
     _get_model,
     embed_graph,
     embed_nodes,
@@ -623,3 +624,48 @@ class TestEmbedNodes:
         # After Matryoshka truncation, we get first 384 dims of the 768d vector
         expected = _vec768([1.0, 2.0, 3.0])[:384].tolist()
         assert results[0].embedding == pytest.approx(expected)
+
+
+class TestFallbackVector:
+    def test_returns_correct_dimensions(self) -> None:
+        vec = _fallback_vector("hello world", _DEFAULT_DIMENSIONS)
+        assert len(vec) == _DEFAULT_DIMENSIONS
+
+    def test_values_in_range(self) -> None:
+        vec = _fallback_vector("test input", 384)
+        assert all(-1.0 <= v <= 1.0 for v in vec)
+
+    def test_deterministic(self) -> None:
+        vec_a = _fallback_vector("same input", 384)
+        vec_b = _fallback_vector("same input", 384)
+        assert vec_a == vec_b
+
+    def test_different_inputs_produce_different_vectors(self) -> None:
+        vec_a = _fallback_vector("input one", 384)
+        vec_b = _fallback_vector("input two", 384)
+        assert vec_a != vec_b
+
+
+class TestEmbedQueryFailure:
+    @patch("fastembed.TextEmbedding")
+    def test_returns_none_on_model_failure(self, mock_te_cls: MagicMock) -> None:
+        mock_te_cls.side_effect = RuntimeError("no network")
+        result = embed_query("some query")
+        assert result is None
+
+    def test_returns_none_for_empty_query(self) -> None:
+        assert embed_query("") is None
+        assert embed_query("   ") is None
+
+
+class TestEmbedNodeListFallback:
+    @patch("fastembed.TextEmbedding")
+    def test_fallback_produces_embeddings_on_model_failure(
+        self, mock_te_cls: MagicMock, sample_graph: KnowledgeGraph
+    ) -> None:
+        mock_te_cls.side_effect = RuntimeError("no network")
+        results = embed_graph(sample_graph)
+        assert len(results) == 2
+        for r in results:
+            assert len(r.embedding) == _DEFAULT_DIMENSIONS
+            assert all(isinstance(v, float) for v in r.embedding)
