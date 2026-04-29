@@ -128,7 +128,7 @@ axon diff main..feature # Structural branch comparison
 9. **Process Detection** — BFS from entry points → `Process` nodes + `STEP_IN_PROCESS` edges
 10. **Dead Code Detection** — multi-pass with decorator/protocol/export exemptions
 11. **Change Coupling** — git co-change analysis → `COUPLED_WITH` edges
-12. **Embeddings (optional, post-load)** — 384-dim vectors via fastembed (nomic-ai/nomic-embed-text-v1.5)
+12. **Embeddings (optional, post-load)** — 768-dim vectors via fastembed (nomic-ai/nomic-embed-text-v1.5)
 
 ---
 
