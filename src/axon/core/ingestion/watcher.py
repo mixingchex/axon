@@ -24,7 +24,6 @@ import watchfiles
 from axon.config.ignore import load_gitignore, should_ignore
 from axon.config.languages import is_supported
 from axon.core.embeddings.embedder import _DEFAULT_MODEL, embed_graph, embed_nodes
-from axon.core.storage.base import EMBEDDING_DIMENSIONS
 from axon.core.graph.graph import KnowledgeGraph
 from axon.core.graph.model import NodeLabel, RelType
 from axon.core.ingestion.community import process_communities
@@ -33,7 +32,7 @@ from axon.core.ingestion.dead_code import process_dead_code
 from axon.core.ingestion.pipeline import reindex_files
 from axon.core.ingestion.processes import process_processes
 from axon.core.ingestion.walker import FileEntry, read_file
-from axon.core.storage.base import StorageBackend
+from axon.core.storage.base import EMBEDDING_DIMENSIONS, StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +69,8 @@ def ensure_current_embeddings(storage: StorageBackend, repo_path: Path) -> bool:
         return False
 
     stored_model = meta.get("embedding_model")
-    if stored_model == _DEFAULT_MODEL:
+    stored_dims = meta.get("embedding_dimensions")
+    if stored_model == _DEFAULT_MODEL and stored_dims == EMBEDDING_DIMENSIONS:
         return False
 
     logger.info(
@@ -80,6 +80,13 @@ def ensure_current_embeddings(storage: StorageBackend, repo_path: Path) -> bool:
     )
 
     try:
+        # Wipe all existing embeddings before full re-embed to avoid
+        # stale rows from deleted nodes persisting in vector_search.
+        try:
+            storage.execute_raw("MATCH (e:Embedding) DETACH DELETE e")
+        except Exception:
+            logger.debug("Failed to clear old embeddings before migration", exc_info=True)
+
         graph = storage.load_graph()
         embeddings = embed_graph(graph)
         if embeddings:

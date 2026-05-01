@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from axon.core.embeddings.embedder import _DEFAULT_MODEL
 from axon.core.ingestion.watcher import ensure_current_embeddings
+from axon.core.storage.base import EMBEDDING_DIMENSIONS, NodeEmbedding
 
 
 def test_needs_reembed_model_mismatch() -> None:
@@ -37,12 +36,15 @@ def test_ensure_current_embeddings_reembeds_and_updates_meta(tmp_path) -> None:
     storage = MagicMock()
     storage.load_graph.return_value = object()
 
-    with patch("axon.core.ingestion.watcher.embed_graph", return_value={"node-1": [0.1, 0.2]}):
+    fake_embeddings = [
+        NodeEmbedding(node_id="node-1", embedding=[0.1] * 384),
+    ]
+    with patch("axon.core.ingestion.watcher.embed_graph", return_value=fake_embeddings):
         migrated = ensure_current_embeddings(storage, repo_path)
 
     assert migrated is True
     storage.load_graph.assert_called_once_with()
-    storage.store_embeddings.assert_called_once_with({"node-1": [0.1, 0.2]})
+    storage.store_embeddings.assert_called_once_with(fake_embeddings)
     updated_meta = json.loads(meta_path.read_text(encoding="utf-8"))
     assert updated_meta["embedding_model"] == _DEFAULT_MODEL
 
@@ -52,7 +54,7 @@ def test_ensure_current_embeddings_noop_when_model_matches(tmp_path) -> None:
     axon_dir = repo_path / ".axon"
     axon_dir.mkdir()
     (axon_dir / "meta.json").write_text(
-        json.dumps({"embedding_model": _DEFAULT_MODEL}) + "\n",
+        json.dumps({"embedding_model": _DEFAULT_MODEL, "embedding_dimensions": EMBEDDING_DIMENSIONS}) + "\n",
         encoding="utf-8",
     )
 

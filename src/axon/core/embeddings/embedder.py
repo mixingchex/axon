@@ -29,11 +29,6 @@ logger = logging.getLogger(__name__)
 _model_cache: dict[str, "TextEmbedding"] = {}
 _model_lock = threading.Lock()
 
-# BGE-small max sequence is 512 tokens (~2000 chars).  Truncating long
-# descriptions avoids wasting tokenisation and padding time on text that
-# the model would discard anyway.
-_MAX_TEXT_CHARS = 2000
-
 
 def _get_model(model_name: str) -> "TextEmbedding":
     cached = _model_cache.get(model_name)
@@ -139,7 +134,7 @@ def embed_graph(
         graph: The knowledge graph whose nodes should be embedded.
         model_name: The fastembed model identifier.  Defaults to
             ``"nomic-ai/nomic-embed-text-v1.5"``.
-        batch_size: Number of texts to encode per batch.  Defaults to 128.
+        batch_size: Number of texts to encode per batch.  Defaults to 32.
         dimensions: Number of dimensions for Matryoshka truncation.
             Defaults to 384.
 

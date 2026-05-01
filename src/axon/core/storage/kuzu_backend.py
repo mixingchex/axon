@@ -9,10 +9,10 @@ covers all source-to-target combinations.
 from __future__ import annotations
 
 import csv
-import json
 import hashlib
 import json
 import logging
+import math
 import tempfile
 import threading
 import time
@@ -24,7 +24,7 @@ import kuzu
 
 from axon.core.graph.graph import KnowledgeGraph
 from axon.core.graph.model import GraphNode, GraphRelationship, NodeLabel, RelType
-from axon.core.storage.base import NodeEmbedding, SearchResult
+from axon.core.storage.base import EMBEDDING_DIMENSIONS, NodeEmbedding, SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -180,8 +180,17 @@ class KuzuBackend:
         """Delete all nodes with the given file_path across every table. Returns count removed."""
         conn = self._require_conn()
         total = 0
+        deleted_ids: list[str] = []
         for table in _NODE_TABLE_NAMES:
             try:
+                id_result = conn.execute(
+                    f"MATCH (n:{table}) WHERE n.file_path = $fp RETURN n.id",
+                    parameters={"fp": file_path},
+                )
+                while id_result.has_next():
+                    row = id_result.get_next()
+                    if row[0]:
+                        deleted_ids.append(row[0])
                 count_result = conn.execute(
                     f"MATCH (n:{table}) WHERE n.file_path = $fp RETURN count(n)",
                     parameters={"fp": file_path},
@@ -194,6 +203,18 @@ class KuzuBackend:
                 )
             except Exception:
                 logger.debug("Failed to remove nodes from table %s", table, exc_info=True)
+
+        if deleted_ids:
+            for i in range(0, len(deleted_ids), 500):
+                batch = deleted_ids[i:i + 500]
+                try:
+                    conn.execute(
+                        "MATCH (e:Embedding) WHERE e.node_id IN $ids DETACH DELETE e",
+                        parameters={"ids": batch},
+                    )
+                except Exception:
+                    logger.debug("Failed to remove embedding rows for deleted nodes", exc_info=True)
+
         return total
 
     def get_inbound_cross_file_edges(
@@ -620,6 +641,14 @@ class KuzuBackend:
         """
         conn = self._require_conn()
         limit = int(limit)
+
+        if len(vector) != EMBEDDING_DIMENSIONS:
+            raise ValueError(
+                f"Expected vector of {EMBEDDING_DIMENSIONS} dimensions, "
+                f"got {len(vector)}"
+            )
+        if not all(math.isfinite(v) for v in vector):
+            raise ValueError("Vector contains non-finite values")
 
         try:
             with self._lock:
