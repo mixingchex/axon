@@ -70,7 +70,6 @@ EMBEDDABLE_LABELS: frozenset[NodeLabel] = frozenset(
 )
 
 _DEFAULT_MODEL = "nomic-ai/nomic-embed-text-v1.5"
-_DEFAULT_DIMENSIONS = EMBEDDING_DIMENSIONS  # 384 via Matryoshka
 _DEFAULT_BATCH_SIZE = 32
 _MAX_TEXT_CHARS = 8192
 
@@ -78,7 +77,6 @@ _MAX_TEXT_CHARS = 8192
 def embed_query(
     query: str,
     model_name: str = _DEFAULT_MODEL,
-    dimensions: int = _DEFAULT_DIMENSIONS,
 ) -> list[float] | None:
     """Embed a single query string, returning ``None`` on failure."""
     if not query or not query.strip():
@@ -86,7 +84,7 @@ def embed_query(
     try:
         model = _get_model(model_name)
         vec = next(iter(model.query_embed(query)))
-        return vec[:dimensions].tolist()
+        return vec[:EMBEDDING_DIMENSIONS].tolist()
     except Exception:
         logger.warning("embed_query failed", exc_info=True)
         return None
@@ -97,7 +95,6 @@ def _embed_node_list(
     texts: list[str],
     model_name: str,
     batch_size: int,
-    dimensions: int,
 ) -> list[NodeEmbedding]:
     """Embed a list of nodes with their corresponding texts."""
     if not texts:
@@ -111,7 +108,7 @@ def _embed_node_list(
         results.append(
             NodeEmbedding(
                 node_id=node.id,
-                embedding=vector[:dimensions].tolist(),
+                embedding=vector[:EMBEDDING_DIMENSIONS].tolist(),
             )
         )
 
@@ -122,21 +119,20 @@ def embed_graph(
     graph: KnowledgeGraph,
     model_name: str = _DEFAULT_MODEL,
     batch_size: int = _DEFAULT_BATCH_SIZE,
-    dimensions: int = _DEFAULT_DIMENSIONS,
 ) -> list[NodeEmbedding]:
     """Generate embeddings for all embeddable nodes in the graph.
 
     Uses fastembed's :class:`TextEmbedding` model for batch encoding.
     Each embeddable node is converted to a natural-language description
     via :func:`generate_text`, then embedded in a single batch call.
+    Vectors are truncated to :data:`EMBEDDING_DIMENSIONS` (384) via
+    Matryoshka dimensionality reduction.
 
     Args:
         graph: The knowledge graph whose nodes should be embedded.
         model_name: The fastembed model identifier.  Defaults to
             ``"nomic-ai/nomic-embed-text-v1.5"``.
         batch_size: Number of texts to encode per batch.  Defaults to 32.
-        dimensions: Number of dimensions for Matryoshka truncation.
-            Defaults to 384.
 
     Returns:
         A list of :class:`NodeEmbedding` instances, one per embeddable node,
@@ -160,7 +156,7 @@ def embed_graph(
     if not texts:
         return []
 
-    return _embed_node_list(nodes, texts, model_name, batch_size, dimensions)
+    return _embed_node_list(nodes, texts, model_name, batch_size)
 
 
 def embed_nodes(
@@ -168,7 +164,6 @@ def embed_nodes(
     node_ids: set[str],
     model_name: str = _DEFAULT_MODEL,
     batch_size: int = _DEFAULT_BATCH_SIZE,
-    dimensions: int = _DEFAULT_DIMENSIONS,
 ) -> list[NodeEmbedding]:
     """Like :func:`embed_graph`, but only for the given *node_ids*."""
     if not node_ids:
@@ -191,4 +186,4 @@ def embed_nodes(
     if not texts:
         return []
 
-    return _embed_node_list(valid_nodes, texts, model_name, batch_size, dimensions)
+    return _embed_node_list(valid_nodes, texts, model_name, batch_size)

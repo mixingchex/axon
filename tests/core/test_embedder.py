@@ -8,7 +8,6 @@ import pytest
 from axon.core.embeddings.embedder import (
     EMBEDDABLE_LABELS,
     _DEFAULT_BATCH_SIZE,
-    _DEFAULT_DIMENSIONS,
     _DEFAULT_MODEL,
     _get_model,
     embed_graph,
@@ -124,7 +123,7 @@ class TestModelDefaults:
         assert "nomic" in _DEFAULT_MODEL
 
     def test_default_dimensions(self) -> None:
-        assert _DEFAULT_DIMENSIONS == 384
+        assert EMBEDDING_DIMENSIONS == 384
 
     def test_default_batch_size(self) -> None:
         assert _DEFAULT_BATCH_SIZE == 32
