@@ -11,20 +11,28 @@ richness that makes embedding worthwhile.
 
 from __future__ import annotations
 
+import logging
+import os
 import threading
 from typing import TYPE_CHECKING
 
 from axon.core.embeddings.text import build_class_method_index, generate_text
 from axon.core.graph.graph import KnowledgeGraph
 from axon.core.graph.model import NodeLabel
-from axon.core.storage.base import NodeEmbedding
+from axon.core.storage.base import EMBEDDING_DIMENSIONS, NodeEmbedding
 
 if TYPE_CHECKING:
     from fastembed import TextEmbedding
 
+logger = logging.getLogger(__name__)
 
 _model_cache: dict[str, "TextEmbedding"] = {}
 _model_lock = threading.Lock()
+
+# BGE-small max sequence is 512 tokens (~2000 chars).  Truncating long
+# descriptions avoids wasting tokenisation and padding time on text that
+# the model would discard anyway.
+_MAX_TEXT_CHARS = 2000
 
 
 def _get_model(model_name: str) -> "TextEmbedding":
@@ -36,7 +44,11 @@ def _get_model(model_name: str) -> "TextEmbedding":
         if cached is not None:
             return cached
         from fastembed import TextEmbedding
-        model = TextEmbedding(model_name=model_name)
+
+        # Cap ONNX threads to avoid saturating all CPU cores.
+        # Default to half the available cores (minimum 2).
+        max_threads = max(2, os.cpu_count() // 2) if os.cpu_count() else 2
+        model = TextEmbedding(model_name=model_name, threads=max_threads)
         _model_cache[model_name] = model
         return model
 
@@ -62,24 +74,60 @@ EMBEDDABLE_LABELS: frozenset[NodeLabel] = frozenset(
     }
 )
 
-_DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
+_DEFAULT_MODEL = "nomic-ai/nomic-embed-text-v1.5"
+_DEFAULT_DIMENSIONS = EMBEDDING_DIMENSIONS  # 384 via Matryoshka
+_DEFAULT_BATCH_SIZE = 32
+_MAX_TEXT_CHARS = 8192
 
 
-def embed_query(query: str, model_name: str = _DEFAULT_MODEL) -> list[float] | None:
+def embed_query(
+    query: str,
+    model_name: str = _DEFAULT_MODEL,
+    dimensions: int = _DEFAULT_DIMENSIONS,
+) -> list[float] | None:
     """Embed a single query string, returning ``None`` on failure."""
     if not query or not query.strip():
         return None
     try:
         model = _get_model(model_name)
-        return list(next(iter(model.embed([query]))))
+        vec = next(iter(model.query_embed(query)))
+        return vec[:dimensions].tolist()
     except Exception:
+        logger.warning("embed_query failed", exc_info=True)
         return None
+
+
+def _embed_node_list(
+    nodes: list,
+    texts: list[str],
+    model_name: str,
+    batch_size: int,
+    dimensions: int,
+) -> list[NodeEmbedding]:
+    """Embed a list of nodes with their corresponding texts."""
+    if not texts:
+        return []
+
+    model = _get_model(model_name)
+    vectors = list(model.passage_embed(texts, batch_size=batch_size))
+
+    results: list[NodeEmbedding] = []
+    for node, vector in zip(nodes, vectors):
+        results.append(
+            NodeEmbedding(
+                node_id=node.id,
+                embedding=vector[:dimensions].tolist(),
+            )
+        )
+
+    return results
 
 
 def embed_graph(
     graph: KnowledgeGraph,
-    model_name: str = "BAAI/bge-small-en-v1.5",
-    batch_size: int = 64,
+    model_name: str = _DEFAULT_MODEL,
+    batch_size: int = _DEFAULT_BATCH_SIZE,
+    dimensions: int = _DEFAULT_DIMENSIONS,
 ) -> list[NodeEmbedding]:
     """Generate embeddings for all embeddable nodes in the graph.
 
@@ -90,8 +138,10 @@ def embed_graph(
     Args:
         graph: The knowledge graph whose nodes should be embedded.
         model_name: The fastembed model identifier.  Defaults to
-            ``"BAAI/bge-small-en-v1.5"``.
-        batch_size: Number of texts to encode per batch.  Defaults to 64.
+            ``"nomic-ai/nomic-embed-text-v1.5"``.
+        batch_size: Number of texts to encode per batch.  Defaults to 128.
+        dimensions: Number of dimensions for Matryoshka truncation.
+            Defaults to 384.
 
     Returns:
         A list of :class:`NodeEmbedding` instances, one per embeddable node,
@@ -99,7 +149,6 @@ def embed_graph(
         Python ``list[float]``.
     """
     all_nodes = [n for n in graph.iter_nodes() if n.label in EMBEDDABLE_LABELS]
-
     if not all_nodes:
         return []
 
@@ -110,40 +159,27 @@ def embed_graph(
     for node in all_nodes:
         text = generate_text(node, graph, class_method_idx)
         if text and text.strip():
-            texts.append(text)
+            texts.append(text[:_MAX_TEXT_CHARS])
             nodes.append(node)
 
     if not texts:
         return []
 
-    model = _get_model(model_name)
-    vectors = list(model.embed(texts, batch_size=batch_size))
-
-    results: list[NodeEmbedding] = []
-    for node, vector in zip(nodes, vectors):
-        results.append(
-            NodeEmbedding(
-                node_id=node.id,
-                embedding=vector.tolist(),
-            )
-        )
-
-    return results
+    return _embed_node_list(nodes, texts, model_name, batch_size, dimensions)
 
 
 def embed_nodes(
     graph: KnowledgeGraph,
     node_ids: set[str],
-    model_name: str = "BAAI/bge-small-en-v1.5",
-    batch_size: int = 64,
+    model_name: str = _DEFAULT_MODEL,
+    batch_size: int = _DEFAULT_BATCH_SIZE,
+    dimensions: int = _DEFAULT_DIMENSIONS,
 ) -> list[NodeEmbedding]:
     """Like :func:`embed_graph`, but only for the given *node_ids*."""
     if not node_ids:
         return []
-
     nodes = [graph.get_node(nid) for nid in node_ids]
     nodes = [n for n in nodes if n is not None and n.label in EMBEDDABLE_LABELS]
-
     if not nodes:
         return []
 
@@ -154,20 +190,10 @@ def embed_nodes(
     for node in nodes:
         text = generate_text(node, graph, class_method_idx)
         if text and text.strip():
-            texts.append(text)
+            texts.append(text[:_MAX_TEXT_CHARS])
             valid_nodes.append(node)
 
     if not texts:
         return []
 
-    model = _get_model(model_name)
-    embeddings: list[NodeEmbedding] = []
-    for node, vector in zip(valid_nodes, model.embed(texts, batch_size=batch_size)):
-        embeddings.append(
-            NodeEmbedding(
-                node_id=node.id,
-                embedding=vector.tolist(),
-            )
-        )
-
-    return embeddings
+    return _embed_node_list(valid_nodes, texts, model_name, batch_size, dimensions)
