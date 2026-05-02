@@ -54,7 +54,10 @@ def test_ensure_current_embeddings_noop_when_model_matches(tmp_path) -> None:
     axon_dir = repo_path / ".axon"
     axon_dir.mkdir()
     (axon_dir / "meta.json").write_text(
-        json.dumps({"embedding_model": _DEFAULT_MODEL, "embedding_dimensions": EMBEDDING_DIMENSIONS}) + "\n",
+        json.dumps(
+            {"embedding_model": _DEFAULT_MODEL, "embedding_dimensions": EMBEDDING_DIMENSIONS}
+        )
+        + "\n",
         encoding="utf-8",
     )
 

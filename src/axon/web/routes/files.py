@@ -123,7 +123,9 @@ def get_tree(request: Request) -> dict:
 
     def _dict_to_list(children_dict: dict) -> list[dict]:
         result = []
-        for node in sorted(children_dict.values(), key=lambda n: (n["type"] != "folder", n["name"])):
+        for node in sorted(
+            children_dict.values(), key=lambda n: (n["type"] != "folder", n["name"])
+        ):
             entry = {
                 "name": node["name"],
                 "path": node["path"],

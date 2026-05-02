@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from click.exceptions import Exit
 import pytest
+from click.exceptions import Exit
 from typer.testing import CliRunner
 
 from axon import __version__
@@ -249,7 +249,9 @@ class TestDeadCode:
         assert result.exit_code == 1
         assert "No index found" in result.output
 
-    def test_dead_code_with_storage(self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+    def test_dead_code_with_storage(
+        self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
         monkeypatch.chdir(tmp_path)
         mock_storage = MagicMock()
         with patch("axon.cli.main._load_storage", return_value=mock_storage):
@@ -339,7 +341,9 @@ class TestServe:
         assert result.exit_code == 0
         mock_run.assert_called_once()
 
-    def test_serve_with_watch_proxies_to_host(self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+    def test_serve_with_watch_proxies_to_host(
+        self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
         import asyncio as real_asyncio
 
         monkeypatch.chdir(tmp_path)
@@ -362,7 +366,9 @@ class TestHost:
 
 
 class TestUi:
-    def test_ui_attaches_to_running_host(self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+    def test_ui_attaches_to_running_host(
+        self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
         monkeypatch.chdir(tmp_path)
         with patch(
             "axon.cli.main._get_live_host_info",
@@ -374,7 +380,9 @@ class TestUi:
         assert "http://127.0.0.1:8420" in result.output
         mock_open.assert_called_once_with("http://127.0.0.1:8420")
 
-    def test_ui_direct_skips_host_attach(self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+    def test_ui_direct_skips_host_attach(
+        self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
         monkeypatch.chdir(tmp_path)
         mock_storage = MagicMock()
         with patch("axon.cli.main._get_live_host_info") as mock_host_info:

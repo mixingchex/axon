@@ -161,7 +161,9 @@ def get_health(request: Request) -> dict:
         )
         total_symbols = int(sum(r[0] for r in dc_rows if r and r[0]) or 1)
         dead_count = int(sum(r[1] for r in dc_rows if r and r[1]) or 0)
-        breakdown["deadCode"] = round(max(0.0, 100.0 - (dead_count / max(total_symbols, 1) * 100)), 1)
+        breakdown["deadCode"] = round(
+            max(0.0, 100.0 - (dead_count / max(total_symbols, 1) * 100)), 1
+        )
     except Exception:
         logger.warning("Health: dead code query failed", exc_info=True)
         breakdown["deadCode"] = 100.0
@@ -206,7 +208,11 @@ def get_health(request: Request) -> dict:
         conf_rows = storage.execute_raw(
             "MATCH ()-[r:CodeRelation]->() WHERE r.rel_type = 'calls' RETURN avg(r.confidence)"
         )
-        avg_conf = conf_rows[0][0] if conf_rows and conf_rows[0] and conf_rows[0][0] is not None else 0.8
+        avg_conf = (
+            conf_rows[0][0]
+            if conf_rows and conf_rows[0] and conf_rows[0][0] is not None
+            else 0.8
+        )
         breakdown["confidence"] = round(min(100.0, avg_conf * 100), 1)
     except Exception:
         logger.warning("Health: confidence query failed", exc_info=True)
