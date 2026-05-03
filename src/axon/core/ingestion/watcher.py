@@ -24,7 +24,6 @@ import watchfiles
 from axon.config.ignore import load_gitignore, should_ignore
 from axon.config.languages import is_supported
 from axon.core.embeddings.embedder import _DEFAULT_MODEL, embed_graph, embed_nodes
-from axon.core.storage.base import EMBEDDING_DIMENSIONS
 from axon.core.graph.graph import KnowledgeGraph
 from axon.core.graph.model import NodeLabel, RelType
 from axon.core.ingestion.community import process_communities
@@ -33,7 +32,7 @@ from axon.core.ingestion.dead_code import process_dead_code
 from axon.core.ingestion.pipeline import reindex_files
 from axon.core.ingestion.processes import process_processes
 from axon.core.ingestion.walker import FileEntry, read_file
-from axon.core.storage.base import StorageBackend
+from axon.core.storage.base import EMBEDDING_DIMENSIONS, StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -311,7 +310,8 @@ async def watch_repo(
         starvation = first_dirty_time > 0 and (now - first_dirty_time) >= MAX_DIRTY_AGE
         if (
             dirty_files
-            and not global_lock.locked()  # Safe: single async event loop, no await between check and acquire.
+            # Safe: single async event loop, no await between check and acquire.
+            and not global_lock.locked()
             and (quiet_elapsed or starvation)
         ):
             snapshot = dirty_files.copy()

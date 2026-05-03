@@ -139,7 +139,10 @@ def resolve_call(
         if node is not None and node.file_path == file_path:
             return nid, 1.0
 
-    effective_cache = import_cache if import_cache is not None else _build_import_cache(file_path, graph)
+    effective_cache = (
+        import_cache if import_cache is not None
+        else _build_import_cache(file_path, graph)
+    )
     imported_target = _resolve_via_imports(name, candidate_ids, graph, effective_cache)
     if imported_target is not None:
         return imported_target, 1.0
