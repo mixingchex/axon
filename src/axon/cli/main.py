@@ -18,7 +18,10 @@ import uuid
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from axon.core.graph.graph import KnowledgeGraph
 
 import anyio
 import typer
@@ -32,8 +35,8 @@ from axon import __version__
 from axon.core.diff import diff_branches, format_diff
 from axon.core.embeddings.embedder import _DEFAULT_MODEL
 from axon.core.ingestion.pipeline import PipelineResult, run_pipeline
-from axon.core.storage.base import EMBEDDING_DIMENSIONS
 from axon.core.ingestion.watcher import ensure_current_embeddings, watch_repo
+from axon.core.storage.base import EMBEDDING_DIMENSIONS
 from axon.core.storage.kuzu_backend import KuzuBackend
 from axon.mcp import tools as mcp_tools
 from axon.mcp.server import main as mcp_main
@@ -432,7 +435,8 @@ def _initialize_writable_storage(
 
     if not auto_index and not _has_existing_index(axon_dir, db_path):
         console.print(
-            "[red]Error:[/red] No index found. Run [cyan]axon analyze .[/cyan] first to index this codebase."
+            "[red]Error:[/red] No index found. Run [cyan]axon analyze .[/cyan] "
+            "first to index this codebase."
         )
         raise typer.Exit(code=1)
 
@@ -583,13 +587,13 @@ def _run_shared_host(
         storage.close()
 
 def _run_background_embeddings(
-    graph: "KnowledgeGraph",
+    graph: KnowledgeGraph,
     db_path: Path,
     meta_path: Path,
     repo_path: Path,
 ) -> None:
     """Generate embeddings in a background thread with its own storage connection."""
-    from axon.core.ingestion.pipeline import _run_embedding_phase, PipelineResult
+    from axon.core.ingestion.pipeline import _run_embedding_phase
 
     bg_storage = KuzuBackend()
     bg_storage.initialize(db_path)
@@ -607,7 +611,8 @@ def _run_background_embeddings(
 
         if bg_result.embeddings > 0:
             console.print(
-                f"[dim]Background embeddings complete: {bg_result.embeddings} vectors generated.[/dim]"
+                f"[dim]Background embeddings complete: "
+                f"{bg_result.embeddings} vectors generated.[/dim]"
             )
     except Exception:
         logger.warning("Background embedding failed — semantic search unavailable", exc_info=True)
@@ -618,9 +623,13 @@ def _run_background_embeddings(
 @app.command()
 def analyze(
     path: Path = typer.Argument(Path("."), help="Path to the repository to index."),
-    no_embeddings: bool = typer.Option(False, "--no-embeddings", help="Skip vector embedding generation."),
+    no_embeddings: bool = typer.Option(
+        False, "--no-embeddings", help="Skip vector embedding generation."
+    ),
     foreground_embeddings: bool = typer.Option(
-        False, "--foreground-embeddings", help="Generate embeddings synchronously instead of in the background.",
+        False,
+        "--foreground-embeddings",
+        help="Generate embeddings synchronously instead of in the background.",
     ),
 ) -> None:
     """Index a repository into a knowledge graph."""
@@ -711,7 +720,8 @@ def status() -> None:
 
     if not meta_path.exists():
         console.print(
-            "[red]Error:[/red] No index found. Run [cyan]axon analyze .[/cyan] first to index this codebase."
+            "[red]Error:[/red] No index found. Run [cyan]axon analyze .[/cyan] "
+            "first to index this codebase."
         )
         raise typer.Exit(code=1)
 
@@ -873,7 +883,9 @@ def watch() -> None:
 
 @app.command()
 def diff(
-    branch_range: str = typer.Argument(..., help="Branch range for comparison (e.g. main..feature)."),
+    branch_range: str = typer.Argument(
+        ..., help="Branch range for comparison (e.g. main..feature)."
+    ),
 ) -> None:
     """Structural branch comparison."""
     repo_path = Path.cwd().resolve()
@@ -893,10 +905,16 @@ def mcp() -> None:
 
 @app.command()
 def host(
-    port: int = typer.Option(DEFAULT_PORT, "--port", "-p", help="Port to serve UI and HTTP MCP on."),
-    bind: str = typer.Option(DEFAULT_HOST, "--bind", help="Host interface to bind the shared host to."),
+    port: int = typer.Option(
+        DEFAULT_PORT, "--port", "-p", help="Port to serve UI and HTTP MCP on."
+    ),
+    bind: str = typer.Option(
+        DEFAULT_HOST, "--bind", help="Host interface to bind the shared host to."
+    ),
     no_open: bool = typer.Option(False, "--no-open", help="Don't auto-open browser."),
-    watch: bool = typer.Option(True, "--watch/--no-watch", help="Enable file watching with auto-reindex."),
+    watch: bool = typer.Option(
+        True, "--watch/--no-watch", help="Enable file watching with auto-reindex."
+    ),
     dev: bool = typer.Option(False, "--dev", help="Proxy to Vite dev server for HMR."),
     managed: bool = typer.Option(False, "--managed", hidden=True),
 ) -> None:
@@ -917,7 +935,9 @@ def host(
 
 @app.command()
 def serve(
-    watch: bool = typer.Option(False, "--watch", "-w", help="Enable file watching with auto-reindex."),
+    watch: bool = typer.Option(
+        False, "--watch", "-w", help="Enable file watching with auto-reindex."
+    ),
 ) -> None:
     """Start MCP server, optionally with live file watching."""
     if not watch:

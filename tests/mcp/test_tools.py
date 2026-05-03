@@ -416,7 +416,7 @@ class TestConfidenceInContext:
         assert "login_handler" in result
         # There should be no "(?)" for the high-confidence caller
         lines = result.split("\n")
-        caller_line = [l for l in lines if "login_handler" in l][0]
+        caller_line = [line for line in lines if "login_handler" in line][0]
         assert "(?)" not in caller_line
         assert "(~)" not in caller_line
 
@@ -487,7 +487,7 @@ class TestFormatQueryResults:
         output = _format_query_results(results, {})
         # Snippet in output should be at most 200 chars
         lines = output.split("\n")
-        snippet_lines = [l for l in lines if l.strip().startswith("xxx")]
+        snippet_lines = [line for line in lines if line.strip().startswith("xxx")]
         for line in snippet_lines:
             assert len(line.strip()) <= 200
 
@@ -768,8 +768,20 @@ class TestHandleCallPath:
         mock_storage.get_callees.return_value = [_callee]
         # Need separate fts_search results for from and to symbols
         mock_storage.fts_search.side_effect = [
-            [SearchResult(node_id="function:src/auth.py:validate", score=1.0, node_name="validate")],
-            [SearchResult(node_id="function:src/perms.py:check_perms", score=1.0, node_name="check_perms")],
+            [
+                SearchResult(
+                    node_id="function:src/auth.py:validate",
+                    score=1.0,
+                    node_name="validate",
+                )
+            ],
+            [
+                SearchResult(
+                    node_id="function:src/perms.py:check_perms",
+                    score=1.0,
+                    node_name="check_perms",
+                )
+            ],
         ]
         mock_storage.get_node.side_effect = [
             GraphNode(id="function:src/auth.py:validate", label=NodeLabel.FUNCTION,

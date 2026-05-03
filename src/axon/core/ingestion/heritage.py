@@ -140,7 +140,9 @@ def process_heritage(
         parallel: When ``True``, resolve files in parallel using threads.
         collect: When ``True``, return flat list of edges instead of writing.
     """
-    symbol_index = name_index if name_index is not None else build_name_index(graph, _HERITAGE_LABELS)
+    symbol_index = (
+        name_index if name_index is not None else build_name_index(graph, _HERITAGE_LABELS)
+    )
 
     if parallel:
         workers = min(os.cpu_count() or 4, 8, len(parse_data))

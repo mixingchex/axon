@@ -38,7 +38,10 @@ def get_processes(request: Request) -> dict:
             logger.debug("Row unpacking failed: %s", e)
             continue
         steps = sorted(
-            [{"nodeId": nid, "stepNumber": sn} for nid, sn in zip(node_ids or [], step_numbers or [])],
+            [
+                {"nodeId": nid, "stepNumber": sn}
+                for nid, sn in zip(node_ids or [], step_numbers or [])
+            ],
             key=lambda s: (s["stepNumber"] is None, s["stepNumber"] or 0),
         )
         processes.append({

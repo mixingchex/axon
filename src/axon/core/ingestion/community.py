@@ -157,7 +157,11 @@ def process_communities(
         )
         return 0
 
-    weights = ig_graph.es["weight"] if ig_graph.ecount() > 0 and "weight" in ig_graph.es.attributes() else None
+    weights = (
+        ig_graph.es["weight"]
+        if ig_graph.ecount() > 0 and "weight" in ig_graph.es.attributes()
+        else None
+    )
     partition = leidenalg.find_partition(
         ig_graph, leidenalg.ModularityVertexPartition, weights=weights
     )
