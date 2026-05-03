@@ -6,10 +6,9 @@ import numpy as np
 import pytest
 
 from axon.core.embeddings.embedder import (
-    EMBEDDABLE_LABELS,
     _DEFAULT_BATCH_SIZE,
-    _DEFAULT_DIMENSIONS,
     _DEFAULT_MODEL,
+    EMBEDDABLE_LABELS,
     _get_model,
     embed_graph,
     embed_nodes,
@@ -124,7 +123,7 @@ class TestModelDefaults:
         assert "nomic" in _DEFAULT_MODEL
 
     def test_default_dimensions(self) -> None:
-        assert _DEFAULT_DIMENSIONS == 384
+        assert EMBEDDING_DIMENSIONS == 384
 
     def test_default_batch_size(self) -> None:
         assert _DEFAULT_BATCH_SIZE == 32
@@ -154,7 +153,9 @@ class TestEmbeddableLabels:
 
 class TestEmbedGraphBasic:
     @patch("fastembed.TextEmbedding")
-    def test_returns_node_embeddings(self, mock_te_cls: MagicMock, sample_graph: KnowledgeGraph) -> None:
+    def test_returns_node_embeddings(
+        self, mock_te_cls: MagicMock, sample_graph: KnowledgeGraph
+    ) -> None:
         mock_model = MagicMock()
         mock_model.passage_embed.return_value = iter(
             [_vec768([0.1, 0.2, 0.3]), _vec768([0.4, 0.5, 0.6])]
@@ -394,7 +395,11 @@ class TestEmbedGraphTextGeneration:
 
         # The texts list passed to model.passage_embed should contain both texts
         embed_call_args = mock_model.passage_embed.call_args
-        texts_arg = embed_call_args.args[0] if embed_call_args.args else embed_call_args.kwargs.get("documents", [])
+        texts_arg = (
+            embed_call_args.args[0]
+            if embed_call_args.args
+            else embed_call_args.kwargs.get("documents", [])
+        )
         assert "text for foo" in texts_arg
         assert "text for Bar" in texts_arg
 
@@ -427,7 +432,9 @@ class TestEmbedGraphBatchProcessing:
         assert all(len(r.embedding) == EMBEDDING_DIMENSIONS for r in results)
 
     @patch("fastembed.TextEmbedding")
-    def test_default_batch_size_is_32(self, mock_te_cls: MagicMock, sample_graph: KnowledgeGraph) -> None:
+    def test_default_batch_size_is_32(
+        self, mock_te_cls: MagicMock, sample_graph: KnowledgeGraph
+    ) -> None:
         mock_model = MagicMock()
         mock_model.passage_embed.return_value = iter(
             [_vec768([0.1, 0.2, 0.3]), _vec768([0.4, 0.5, 0.6])]
@@ -448,7 +455,7 @@ class TestEmbedGraphNomic:
         mock_model = MagicMock()
         mock_model.passage_embed.return_value = iter([_vec768([0.1]), _vec768([0.2])])
         mock_te_cls.return_value = mock_model
-        results = embed_graph(sample_graph)
+        _ = embed_graph(sample_graph)
         mock_model.passage_embed.assert_called_once()
         mock_model.embed.assert_not_called()
 
@@ -468,7 +475,7 @@ class TestEmbedQueryNomic:
         mock_model = MagicMock()
         mock_model.query_embed.return_value = iter([np.array([0.5] * 768)])
         mock_te_cls.return_value = mock_model
-        result = embed_query("test query")
+        _ = embed_query("test query")
         mock_model.query_embed.assert_called_once()
         mock_model.embed.assert_not_called()
 

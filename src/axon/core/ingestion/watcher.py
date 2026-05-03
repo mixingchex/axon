@@ -318,7 +318,8 @@ async def watch_repo(
         starvation = first_dirty_time > 0 and (now - first_dirty_time) >= MAX_DIRTY_AGE
         if (
             dirty_files
-            and not global_lock.locked()  # Safe: single async event loop, no await between check and acquire.
+            # Safe: single async event loop, no await between check and acquire.
+            and not global_lock.locked()
             and (quiet_elapsed or starvation)
         ):
             snapshot = dirty_files.copy()

@@ -14,15 +14,51 @@ def mock_storage() -> MagicMock:
     storage = MagicMock()
     # FTS returns results in ranked order
     storage.fts_search.return_value = [
-        SearchResult(node_id="a", score=1.0, node_name="validate_user", file_path="src/auth.py", label="function"),
-        SearchResult(node_id="b", score=0.8, node_name="validate_input", file_path="src/forms.py", label="function"),
-        SearchResult(node_id="c", score=0.5, node_name="check_valid", file_path="src/utils.py", label="function"),
+        SearchResult(
+            node_id="a",
+            score=1.0,
+            node_name="validate_user",
+            file_path="src/auth.py",
+            label="function",
+        ),
+        SearchResult(
+            node_id="b",
+            score=0.8,
+            node_name="validate_input",
+            file_path="src/forms.py",
+            label="function",
+        ),
+        SearchResult(
+            node_id="c",
+            score=0.5,
+            node_name="check_valid",
+            file_path="src/utils.py",
+            label="function",
+        ),
     ]
     # Vector returns results (some overlap with FTS)
     storage.vector_search.return_value = [
-        SearchResult(node_id="b", score=0.95, node_name="validate_input", file_path="src/forms.py", label="function"),
-        SearchResult(node_id="d", score=0.9, node_name="verify_user", file_path="src/verify.py", label="function"),
-        SearchResult(node_id="a", score=0.7, node_name="validate_user", file_path="src/auth.py", label="function"),
+        SearchResult(
+            node_id="b",
+            score=0.95,
+            node_name="validate_input",
+            file_path="src/forms.py",
+            label="function",
+        ),
+        SearchResult(
+            node_id="d",
+            score=0.9,
+            node_name="verify_user",
+            file_path="src/verify.py",
+            label="function",
+        ),
+        SearchResult(
+            node_id="a",
+            score=0.7,
+            node_name="validate_user",
+            file_path="src/auth.py",
+            label="function",
+        ),
     ]
     return storage
 

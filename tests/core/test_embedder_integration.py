@@ -6,9 +6,10 @@ from __future__ import annotations
 
 import pytest
 
-from axon.core.embeddings.embedder import embed_query, embed_graph, _DEFAULT_DIMENSIONS
+from axon.core.embeddings.embedder import embed_graph, embed_query
 from axon.core.graph.graph import KnowledgeGraph
 from axon.core.graph.model import GraphNode, NodeLabel
+from axon.core.storage.base import EMBEDDING_DIMENSIONS
 
 
 @pytest.mark.slow
@@ -16,7 +17,7 @@ class TestEmbeddingIntegration:
     def test_embed_query_returns_correct_dimensions(self) -> None:
         result = embed_query("a function that sorts a list")
         assert result is not None
-        assert len(result) == _DEFAULT_DIMENSIONS
+        assert len(result) == EMBEDDING_DIMENSIONS
 
     def test_semantic_similarity_ranking(self) -> None:
         """Verify that semantically similar queries produce similar vectors."""
@@ -49,4 +50,4 @@ class TestEmbeddingIntegration:
         ))
         results = embed_graph(graph)
         assert len(results) == 1
-        assert len(results[0].embedding) == _DEFAULT_DIMENSIONS
+        assert len(results[0].embedding) == EMBEDDING_DIMENSIONS

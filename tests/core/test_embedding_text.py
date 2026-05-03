@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from axon.core.embeddings.text import generate_text, build_class_method_index, _MAX_TEXT_TOKENS
+from axon.core.embeddings.text import _MAX_TEXT_TOKENS, build_class_method_index, generate_text
 from axon.core.graph.graph import KnowledgeGraph
 from axon.core.graph.model import (
     GraphNode,

@@ -1053,6 +1053,28 @@ class KuzuBackend:
             logger.debug("CSV bulk_store_embeddings failed, falling back", exc_info=True)
             return False
 
+    @staticmethod
+    def _migrate_embedding_schema(conn: kuzu.Connection) -> None:
+        """Drop and recreate the Embedding table if it uses the legacy DOUBLE[] schema."""
+        try:
+            result = conn.execute("CALL table_info('Embedding') RETURN *")
+            while result.has_next():
+                row = result.get_next()
+                col_name = row[1] if len(row) > 1 else ""
+                col_type = str(row[2]).upper() if len(row) > 2 else ""
+                if col_name == "vec" and "FLOAT" not in col_type:
+                    logger.info(
+                        "Migrating Embedding table from %s to FLOAT[384]",
+                        col_type,
+                    )
+                    conn.execute("DROP TABLE Embedding")
+                    conn.execute(
+                        f"CREATE NODE TABLE Embedding({_EMBEDDING_PROPERTIES})"
+                    )
+                    return
+        except Exception:
+            logger.debug("Embedding schema migration check skipped", exc_info=True)
+
     def _create_schema(self) -> None:
         """Create node/rel/embedding tables and the FTS extension."""
         conn = self._require_conn()
@@ -1074,6 +1096,7 @@ class KuzuBackend:
         conn.execute(
             f"CREATE NODE TABLE IF NOT EXISTS Embedding({_EMBEDDING_PROPERTIES})"
         )
+        self._migrate_embedding_schema(conn)
 
         from_to_pairs: list[str] = []
         for src in _NODE_TABLE_NAMES:
