@@ -18,7 +18,10 @@ import uuid
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from axon.core.graph.graph import KnowledgeGraph
 
 import anyio
 import typer
@@ -584,7 +587,7 @@ def _run_shared_host(
         storage.close()
 
 def _run_background_embeddings(
-    graph,
+    graph: KnowledgeGraph,
     db_path: Path,
     meta_path: Path,
     repo_path: Path,
