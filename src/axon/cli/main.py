@@ -591,7 +591,7 @@ def _run_background_embeddings(
     repo_path: Path,
 ) -> None:
     """Generate embeddings in a background thread with its own storage connection."""
-    from axon.core.ingestion.pipeline import PipelineResult, _run_embedding_phase
+    from axon.core.ingestion.pipeline import _run_embedding_phase
 
     bg_storage = KuzuBackend()
     bg_storage.initialize(db_path)
