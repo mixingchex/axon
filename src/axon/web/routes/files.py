@@ -160,7 +160,7 @@ def get_file(
         raise HTTPException(status_code=400, detail="Path must not be empty")
 
     candidate = PurePosixPath(raw_path)
-    if candidate.is_absolute() or any(part in (".", "..") for part in candidate.parts):
+    if candidate.is_absolute() or not candidate.parts or any(part == ".." for part in candidate.parts):
         raise HTTPException(status_code=400, detail="Path traversal not allowed")
 
     # Prevent path traversal — is_relative_to avoids the shared-prefix bypass
