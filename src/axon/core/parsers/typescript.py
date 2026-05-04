@@ -392,7 +392,9 @@ class TypeScriptParser(LanguageParser):
                     elif sub.type == "generic_type":
                         name_node = sub.child_by_field_name("name")
                         if name_node is not None:
-                            result.heritage.append((class_name, "implements", name_node.text.decode()))
+                            result.heritage.append(
+                                (class_name, "implements", name_node.text.decode())
+                            )
 
     def _extract_interface(self, node: Node, source: str, result: ParseResult) -> None:
         name_node = node.child_by_field_name("name")

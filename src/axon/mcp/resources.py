@@ -35,7 +35,11 @@ def get_overview(storage: StorageBackend) -> str:
             for row in rows:
                 # KuzuDB returns labels(n) as a list, e.g. ["Function"].
                 raw_label = row[0] if row else "Unknown"
-                label = raw_label[0] if isinstance(raw_label, list) and raw_label else str(raw_label)
+                label = (
+                    raw_label[0]
+                    if isinstance(raw_label, list) and raw_label
+                    else str(raw_label)
+                )
                 count = row[1] if len(row) > 1 else 0
                 lines.append(f"  {label}: {count}")
                 total += count

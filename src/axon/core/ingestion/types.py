@@ -127,7 +127,9 @@ def process_types(
                 parse_data,
             ))
     else:
-        all_edges = [resolve_file_types(fpd, type_index, file_sym_index, graph) for fpd in parse_data]
+        all_edges = [
+            resolve_file_types(fpd, type_index, file_sym_index, graph) for fpd in parse_data
+        ]
 
     flat = [edge for file_edges in all_edges for edge in file_edges]
 

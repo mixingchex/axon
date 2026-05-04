@@ -13,10 +13,10 @@ from typing import AsyncIterator
 
 import httpx
 from fastapi import FastAPI, Request
-from httpx import ReadError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from httpx import ReadError
 from starlette.routing import Route
 
 from axon.core.storage.kuzu_backend import KuzuBackend

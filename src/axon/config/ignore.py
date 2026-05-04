@@ -47,7 +47,9 @@ DEFAULT_IGNORE_PATTERNS: frozenset[str] = frozenset(
 
 # Separate glob patterns (contain wildcards) from literal names at module load
 # so we only compute this once.
-_GLOB_PATTERNS: frozenset[str] = frozenset(p for p in DEFAULT_IGNORE_PATTERNS if "*" in p or "?" in p)
+_GLOB_PATTERNS: frozenset[str] = frozenset(
+    p for p in DEFAULT_IGNORE_PATTERNS if "*" in p or "?" in p
+)
 _LITERAL_PATTERNS: frozenset[str] = DEFAULT_IGNORE_PATTERNS - _GLOB_PATTERNS
 
 def _matches_default_patterns(path: Path) -> bool:
@@ -58,7 +60,8 @@ def _matches_default_patterns(path: Path) -> bool:
         # Match directories like "mypackage.egg-info" by suffix.
         if part.endswith(".egg-info"):
             return True
-        # Also check globs against every component (e.g. *.pyc as a directory — unlikely but consistent)
+        # Also check globs against every component
+        # (e.g. *.pyc as a directory — unlikely but consistent)
         for pattern in _GLOB_PATTERNS:
             if fnmatch.fnmatch(part, pattern):
                 return True
