@@ -179,7 +179,9 @@ TOOLS: list[Tool] = [
                 },
                 "depth": {
                     "type": "integer",
-                    "description": f"Maximum traversal depth (default 3, max {MAX_TRAVERSE_DEPTH}).",
+                    "description": (
+                        f"Maximum traversal depth (default 3, max {MAX_TRAVERSE_DEPTH})."
+                    ),
                     "default": 3,
                     "minimum": 1,
                     "maximum": MAX_TRAVERSE_DEPTH,
