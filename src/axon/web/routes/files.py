@@ -151,19 +151,28 @@ def get_file(
     if repo_path is None:
         raise HTTPException(status_code=400, detail="No repo_path configured")
 
-    requested_path = Path(path)
-    if requested_path.is_absolute() or ".." in requested_path.parts:
+    # Normalize user input as a relative path and reject traversal/absolute forms.
+    normalized_path = Path(path.strip())
+    if (
+        not normalized_path.parts
+        or normalized_path.is_absolute()
+        or normalized_path.anchor
+        or ".." in normalized_path.parts
+    ):
         raise HTTPException(status_code=400, detail="Path traversal not allowed")
 
     repo_root = Path(repo_path).resolve()
+    candidate = repo_root.joinpath(*normalized_path.parts)
+
     try:
-        resolved = (repo_root / requested_path).resolve(strict=True)
+        resolved = candidate.resolve(strict=True)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"File not found: {path}")
 
-    # Prevent path traversal — is_relative_to avoids the shared-prefix bypass
-    # (e.g. /repo vs /repo-evil) that startswith() is vulnerable to.
-    if not resolved.is_relative_to(repo_root):
+    # Ensure the final resolved path is contained within repo_root.
+    try:
+        resolved.relative_to(repo_root)
+    except ValueError:
         raise HTTPException(status_code=400, detail="Path traversal not allowed")
 
     if not resolved.is_file():
