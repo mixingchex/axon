@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -158,6 +158,12 @@ def get_file(
     raw_path = path.strip()
     if not raw_path:
         raise HTTPException(status_code=400, detail="Path must not be empty")
+
+    # Reject Windows-style absolute paths (drive letters like "C:\foo" and UNC
+    # like "\\server\share") before posix normalization — PurePosixPath would
+    # otherwise treat them as relative and they'd fall through to a 404.
+    if PureWindowsPath(raw_path).is_absolute():
+        raise HTTPException(status_code=400, detail="Path traversal not allowed")
 
     candidate = PurePosixPath(raw_path.replace("\\", "/"))
     if candidate.is_absolute() or ".." in candidate.parts or not candidate.parts:
