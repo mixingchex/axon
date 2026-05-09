@@ -735,6 +735,93 @@ class TestFileEndpoint:
         assert response.status_code == 400
         assert "traversal" in response.json()["detail"].lower()
 
+    def test_empty_path_blocked(
+        self, mock_storage: MagicMock, tmp_path: Path
+    ) -> None:
+        app = _make_app(mock_storage, repo_path=tmp_path)
+        client = TestClient(app)
+
+        response = client.get("/file?path=")
+        assert response.status_code == 400
+        assert "empty" in response.json()["detail"].lower()
+
+    def test_whitespace_only_path_blocked(
+        self, mock_storage: MagicMock, tmp_path: Path
+    ) -> None:
+        app = _make_app(mock_storage, repo_path=tmp_path)
+        client = TestClient(app)
+
+        response = client.get("/file", params={"path": "   "})
+        assert response.status_code == 400
+        assert "empty" in response.json()["detail"].lower()
+
+    def test_absolute_path_blocked(
+        self, mock_storage: MagicMock, tmp_path: Path
+    ) -> None:
+        app = _make_app(mock_storage, repo_path=tmp_path)
+        client = TestClient(app)
+
+        response = client.get("/file?path=/etc/passwd")
+        assert response.status_code == 400
+        assert "traversal" in response.json()["detail"].lower()
+
+    def test_current_dir_path_blocked(
+        self, mock_storage: MagicMock, tmp_path: Path
+    ) -> None:
+        # PurePosixPath normalizes "." to empty parts; the `not candidate.parts`
+        # guard should catch this and return 400 rather than falling through.
+        app = _make_app(mock_storage, repo_path=tmp_path)
+        client = TestClient(app)
+
+        response = client.get("/file?path=.")
+        assert response.status_code == 400
+        assert "traversal" in response.json()["detail"].lower()
+
+    def test_embedded_dotdot_segment_blocked(
+        self, mock_storage: MagicMock, tmp_path: Path
+    ) -> None:
+        app = _make_app(mock_storage, repo_path=tmp_path)
+        client = TestClient(app)
+
+        response = client.get("/file?path=src/../../etc/passwd")
+        assert response.status_code == 400
+        assert "traversal" in response.json()["detail"].lower()
+
+    def test_backslash_traversal_blocked(
+        self, mock_storage: MagicMock, tmp_path: Path
+    ) -> None:
+        # Backslashes are normalized to forward slashes so traversal segments
+        # cannot bypass the ".." check on Windows-style inputs.
+        app = _make_app(mock_storage, repo_path=tmp_path)
+        client = TestClient(app)
+
+        response = client.get("/file", params={"path": "..\\..\\etc\\passwd"})
+        assert response.status_code == 400
+        assert "traversal" in response.json()["detail"].lower()
+
+    def test_windows_drive_path_blocked(
+        self, mock_storage: MagicMock, tmp_path: Path
+    ) -> None:
+        # Windows-style absolute paths like "C:\Users\file" must be rejected
+        # explicitly — PurePosixPath would otherwise treat them as relative
+        # and the request would fall through to a misleading 404.
+        app = _make_app(mock_storage, repo_path=tmp_path)
+        client = TestClient(app)
+
+        response = client.get("/file", params={"path": "C:\\Users\\file"})
+        assert response.status_code == 400
+        assert "traversal" in response.json()["detail"].lower()
+
+    def test_unc_path_blocked(
+        self, mock_storage: MagicMock, tmp_path: Path
+    ) -> None:
+        app = _make_app(mock_storage, repo_path=tmp_path)
+        client = TestClient(app)
+
+        response = client.get("/file", params={"path": "\\\\server\\share\\file"})
+        assert response.status_code == 400
+        assert "traversal" in response.json()["detail"].lower()
+
 
 class TestDiffEndpoint:
     def test_no_repo_path(self, client: TestClient) -> None:

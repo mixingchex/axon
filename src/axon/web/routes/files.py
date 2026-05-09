@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -154,10 +154,25 @@ def get_file(
     if repo_path is None:
         raise HTTPException(status_code=400, detail="No repo_path configured")
 
+    # Validate and normalize user input as a repo-relative POSIX path.
+    raw_path = path.strip()
+    if not raw_path:
+        raise HTTPException(status_code=400, detail="Path must not be empty")
+
+    # Reject Windows-style absolute paths (drive letters like "C:\foo" and UNC
+    # like "\\server\share") before posix normalization — PurePosixPath would
+    # otherwise treat them as relative and they'd fall through to a 404.
+    if PureWindowsPath(raw_path).is_absolute():
+        raise HTTPException(status_code=400, detail="Path traversal not allowed")
+
+    candidate = PurePosixPath(raw_path.replace("\\", "/"))
+    if candidate.is_absolute() or ".." in candidate.parts or not candidate.parts:
+        raise HTTPException(status_code=400, detail="Path traversal not allowed")
+
     # Prevent path traversal — is_relative_to avoids the shared-prefix bypass
     # (e.g. /repo vs /repo-evil) that startswith() is vulnerable to.
     repo_root = Path(repo_path).resolve()
-    resolved = (repo_root / path).resolve()
+    resolved = (repo_root / Path(*candidate.parts)).resolve()
     if not resolved.is_relative_to(repo_root):
         raise HTTPException(status_code=400, detail="Path traversal not allowed")
 
